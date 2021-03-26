@@ -20,17 +20,26 @@ import (
 type Session struct {
 	sync.Mutex
 
-	nextConnID       int64
-	clientKey        string
-	sessionKey       int64
-	conn             *wsConn
-	conns            map[int64]*connection
+	// current server side conn ID
+	nextConnID int64
+	// agent client key
+	clientKey string
+	// random number
+	sessionKey int64
+	// tunnel connection, keeped by agent and server
+	conn *wsConn
+	// server side connections, read/write pipe tunnel connection
+	conns map[int64]*connection
+	// TODO: useful???
 	remoteClientKeys map[string]map[int]bool
-	auth             ConnectAuthorizer
-	pingCancel       context.CancelFunc
-	pingWait         sync.WaitGroup
-	dialer           Dialer
-	client           bool
+	// auth message proto and address
+	auth ConnectAuthorizer
+	// for stop pings
+	pingCancel context.CancelFunc
+	pingWait   sync.WaitGroup
+	dialer     Dialer
+	// indicate if it's client session
+	client bool
 }
 
 // PrintTunnelData No tunnel logging by default
@@ -48,6 +57,7 @@ func NewClientSession(auth ConnectAuthorizer, conn *websocket.Conn) *Session {
 
 func NewClientSessionWithDialer(auth ConnectAuthorizer, conn *websocket.Conn, dialer Dialer) *Session {
 	return &Session{
+		// hardcode, no need to set at agent side
 		clientKey: "client",
 		conn:      newWSConn(conn),
 		conns:     map[int64]*connection{},
@@ -115,6 +125,7 @@ func (s *Session) Serve(ctx context.Context) (int, error) {
 			return 400, err
 		}
 
+		// expect binary message
 		if msType != websocket.BinaryMessage {
 			return 400, errWrongMessageType
 		}
@@ -136,9 +147,11 @@ func (s *Session) serveMessage(ctx context.Context, reader io.Reader) error {
 	}
 
 	if message.messageType == Connect {
+		// proto and address is for auth...
 		if s.auth == nil || !s.auth(message.proto, message.address) {
 			return errors.New("connect not allowed")
 		}
+		// conn r/w pipe
 		s.clientConnect(ctx, message)
 		return nil
 	}
@@ -153,6 +166,8 @@ func (s *Session) serveMessage(ctx context.Context, reader io.Reader) error {
 		s.Unlock()
 		return err
 	}
+	// conn is the mapping of server side conn
+	// conn is the wrapper of tunnel conn at agent side
 	conn := s.conns[message.connID]
 	s.Unlock()
 
@@ -166,6 +181,7 @@ func (s *Session) serveMessage(ctx context.Context, reader io.Reader) error {
 
 	switch message.messageType {
 	case Data:
+		// TUNNEL CONN READ -> conn READ
 		if err := conn.OnData(message); err != nil {
 			s.closeConnection(message.connID, err)
 		}
@@ -189,6 +205,7 @@ func parseAddress(address string) (string, int, error) {
 	return parts[0], v, err
 }
 
+// TODO: what's it?
 func (s *Session) addRemoteClient(address string) error {
 	clientKey, sessionKey, err := parseAddress(address)
 	if err != nil {
@@ -331,6 +348,7 @@ func (s *Session) Close() {
 	s.conns = map[int64]*connection{}
 }
 
+// if session added, write AddClient Message
 func (s *Session) sessionAdded(clientKey string, sessionKey int64) {
 	client := fmt.Sprintf("%s/%d", clientKey, sessionKey)
 	_, err := s.writeMessage(time.Time{}, newAddClient(client))

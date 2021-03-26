@@ -24,6 +24,7 @@ func DefaultErrorWriter(rw http.ResponseWriter, req *http.Request, code int, err
 }
 
 type Server struct {
+	// server to server, peer to peer
 	PeerID                  string
 	PeerToken               string
 	ClientConnectAuthorizer ConnectAuthorizer

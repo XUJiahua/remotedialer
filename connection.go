@@ -51,6 +51,7 @@ func (c *connection) doTunnelClose(err error) {
 }
 
 func (c *connection) OnData(m *message) error {
+	// write body to buffer
 	return c.buffer.Offer(m.body)
 }
 
@@ -60,12 +61,14 @@ func (c *connection) Close() error {
 }
 
 func (c *connection) Read(b []byte) (int, error) {
+	// read from buffer
 	n, err := c.buffer.Read(b)
 	metrics.AddSMTotalReceiveBytesOnWS(c.session.clientKey, float64(n))
 	return n, err
 }
 
 func (c *connection) Write(b []byte) (int, error) {
+	// write back, MESSAGE on tunnel
 	if c.err != nil {
 		return 0, io.ErrClosedPipe
 	}

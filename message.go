@@ -36,14 +36,19 @@ func init() {
 type messageType int64
 
 type message struct {
-	id          int64
-	err         error
-	connID      int64
+	// header
+	id  int64
+	err error
+	// header
+	connID int64
+	// header
 	messageType messageType
 	bytes       []byte
 	body        io.Reader
-	proto       string
-	address     string
+	// parsed from bytes
+	proto string
+	// parsed from bytes
+	address string
 }
 
 func nextid() int64 {
@@ -132,6 +137,7 @@ func newServerMessage(reader io.Reader) (*message, error) {
 	}
 
 	if m.messageType == Connect {
+		// TODO: WHY 100???
 		bytes, err := ioutil.ReadAll(io.LimitReader(buf, 100))
 		if err != nil {
 			return nil, err
@@ -177,6 +183,8 @@ func (m *message) Bytes() []byte {
 	return append(m.header(len(m.bytes)), m.bytes...)
 }
 
+// header: int64(id) int64(connID) int64(messageType) int64(deadLine)
+// TODO: space is for ???
 func (m *message) header(space int) []byte {
 	buf := make([]byte, 24+space)
 	offset := 0

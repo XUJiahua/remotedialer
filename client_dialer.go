@@ -49,10 +49,12 @@ func pipe(client *connection, server net.Conn) {
 
 	go func() {
 		defer wg.Done()
+		// copy bytes from client (server -> agent) to server(agent -> target)
 		_, err := io.Copy(server, client)
 		close(err)
 	}()
 
+	// vice verse
 	_, err := io.Copy(client, server)
 	err = close(err)
 	wg.Wait()

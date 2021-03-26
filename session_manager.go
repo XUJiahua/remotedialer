@@ -11,6 +11,7 @@ import (
 	"github.com/rancher/remotedialer/metrics"
 )
 
+// Session is a sessionListener
 type sessionListener interface {
 	sessionAdded(clientKey string, sessionKey int64)
 	sessionRemoved(clientKey string, sessionKey int64)
@@ -18,11 +19,13 @@ type sessionListener interface {
 
 type sessionManager struct {
 	sync.Mutex
+	// Agents
 	clients   map[string][]*Session
 	peers     map[string][]*Session
 	listeners map[sessionListener]bool
 }
 
+// server keep multiple sessions while agent only keep 1 session
 func newSessionManager() *sessionManager {
 	return &sessionManager{
 		clients:   map[string][]*Session{},
@@ -31,6 +34,7 @@ func newSessionManager() *sessionManager {
 	}
 }
 
+// used for custom http Transport
 func toDialer(s *Session, prefix string) Dialer {
 	return func(ctx context.Context, proto, address string) (net.Conn, error) {
 		if prefix == "" {

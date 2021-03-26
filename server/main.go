@@ -30,10 +30,11 @@ func authorizer(req *http.Request) (string, bool, error) {
 func Client(server *remotedialer.Server, rw http.ResponseWriter, req *http.Request) {
 	timeout := req.URL.Query().Get("timeout")
 	if timeout == "" {
-		timeout = "15"
+		timeout = "600"
 	}
 
 	vars := mux.Vars(req)
+	// X-Tunnel-ID agent client provided
 	clientKey := vars["id"]
 	url := fmt.Sprintf("%s://%s%s", vars["scheme"], vars["host"], vars["path"])
 	client := getClient(server, clientKey, timeout)
@@ -67,6 +68,7 @@ func getClient(server *remotedialer.Server, clientKey, timeout string) *http.Cli
 
 	dialer := server.Dialer(clientKey)
 	client = &http.Client{
+		// DialContext is used to provide a TCP conn
 		Transport: &http.Transport{
 			DialContext: dialer,
 		},
@@ -94,7 +96,7 @@ func main() {
 	flag.StringVar(&peerID, "id", "", "Peer ID")
 	flag.StringVar(&peerToken, "token", "", "Peer Token")
 	flag.StringVar(&peers, "peers", "", "Peers format id:token:url,id:token:url")
-	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
+	flag.BoolVar(&debug, "debug", true, "Enable debug logging")
 	flag.Parse()
 
 	if debug {

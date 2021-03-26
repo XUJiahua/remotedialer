@@ -11,6 +11,7 @@ import (
 )
 
 type wsConn struct {
+	// at most 1 writer
 	sync.Mutex
 	conn *websocket.Conn
 }
@@ -23,13 +24,16 @@ func newWSConn(conn *websocket.Conn) *wsConn {
 	return w
 }
 
+// writer
 func (w *wsConn) WriteMessage(messageType int, deadline time.Time, data []byte) error {
+	// no deadline
 	if deadline.IsZero() {
 		w.Lock()
 		defer w.Unlock()
 		return w.conn.WriteMessage(messageType, data)
 	}
 
+	// with deadline
 	ctx, cancel := context.WithDeadline(context.Background(), deadline)
 	defer cancel()
 
@@ -40,6 +44,7 @@ func (w *wsConn) WriteMessage(messageType int, deadline time.Time, data []byte) 
 		done <- w.conn.WriteMessage(messageType, data)
 	}()
 
+	// wait deadline or goroutine done, return the first returned
 	select {
 	case <-ctx.Done():
 		return fmt.Errorf("i/o timeout")
@@ -48,6 +53,8 @@ func (w *wsConn) WriteMessage(messageType int, deadline time.Time, data []byte) 
 	}
 }
 
+// reader
+// return either BinaryMessage or TextMessage
 func (w *wsConn) NextReader() (int, io.Reader, error) {
 	return w.conn.NextReader()
 }
