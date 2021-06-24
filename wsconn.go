@@ -3,6 +3,7 @@ package remotedialer
 import (
 	"context"
 	"fmt"
+	"github.com/rancher/remotedialer/metrics"
 	"io"
 	"sync"
 	"time"
@@ -12,12 +13,14 @@ import (
 
 type wsConn struct {
 	sync.Mutex
-	conn *websocket.Conn
+	conn                         *websocket.Conn
+	secondsElapsedAfterPongOrErr float64
 }
 
 func newWSConn(conn *websocket.Conn) *wsConn {
 	w := &wsConn{
-		conn: conn,
+		conn:                         conn,
+		secondsElapsedAfterPongOrErr: 0,
 	}
 	w.setupDeadline()
 	return w
@@ -49,7 +52,21 @@ func (w *wsConn) WriteMessage(messageType int, deadline time.Time, data []byte) 
 }
 
 func (w *wsConn) NextReader() (int, io.Reader, error) {
-	return w.conn.NextReader()
+	start := time.Now()
+	// w.conn.NextReader will not return PING/PONG message type
+	messageType, r, err := w.conn.NextReader()
+	w.secondsElapsedAfterPongOrErr += time.Now().Sub(start).Seconds()
+	if err != nil {
+		w.observeSecondsElapsed()
+	}
+
+	return messageType, r, err
+}
+
+func (w *wsConn) observeSecondsElapsed() {
+	metrics.ObserveSecondsElapsedAfterPongOrErr(w.secondsElapsedAfterPongOrErr)
+	// reset time escaped after receiving PONG
+	w.secondsElapsedAfterPongOrErr = 0
 }
 
 func (w *wsConn) setupDeadline() {
@@ -67,6 +84,7 @@ func (w *wsConn) setupDeadline() {
 		return w.conn.SetWriteDeadline(time.Now().Add(PingWaitDuration))
 	})
 	w.conn.SetPongHandler(func(string) error {
+		w.observeSecondsElapsed()
 		if err := w.conn.SetReadDeadline(time.Now().Add(PingWaitDuration)); err != nil {
 			return err
 		}

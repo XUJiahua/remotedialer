@@ -96,6 +96,13 @@ var (
 		},
 		[]string{"peer"},
 	)
+
+	SecondsElapsedAfterPongOrErr = prometheus.NewHistogram(prometheus.HistogramOpts{
+		Subsystem: "session_server",
+		Name:      "seconds_elapsed_after_pong_or_err",
+		Help:      "The seconds elapsed after receiving Pong or on Err.",
+		Buckets:   prometheus.LinearBuckets(15, 15, 4),
+	})
 )
 
 // Register registers a series of session
@@ -112,6 +119,7 @@ func Register() {
 	prometheus.MustRegister(TotalAddPeerAttempt)
 	prometheus.MustRegister(TotalPeerConnected)
 	prometheus.MustRegister(TotalPeerDisConnected)
+	prometheus.MustRegister(SecondsElapsedAfterPongOrErr)
 }
 
 func init() {
@@ -227,5 +235,11 @@ func IncSMTotalPeerDisConnected(peer string) {
 				"peer": peer,
 			}).Inc()
 
+	}
+}
+
+func ObserveSecondsElapsedAfterPongOrErr(seconds float64) {
+	if prometheusMetrics {
+		SecondsElapsedAfterPongOrErr.Observe(seconds)
 	}
 }
