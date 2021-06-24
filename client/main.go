@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
+	"time"
 
 	"github.com/rancher/remotedialer"
 	"github.com/sirupsen/logrus"
@@ -14,6 +16,12 @@ var (
 	id    string
 	debug bool
 )
+
+func init() {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+}
 
 func main() {
 	flag.StringVar(&addr, "connect", "ws://localhost:8123/connect", "Address to connect to")
@@ -29,5 +37,14 @@ func main() {
 		"X-Tunnel-ID": []string{id},
 	}
 
-	remotedialer.ClientConnect(context.Background(), addr, headers, nil, func(string, string) bool { return true }, nil)
+	go func() {
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(":2112", nil)
+	}()
+
+	for {
+		remotedialer.ClientConnect(context.Background(), addr, headers, nil, func(string, string) bool { return true }, nil)
+
+		time.Sleep(time.Second * 5)
+	}
 }

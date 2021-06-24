@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"io"
 	"net/http"
 	"strconv"
@@ -15,6 +16,12 @@ import (
 	"github.com/rancher/remotedialer"
 	"github.com/sirupsen/logrus"
 )
+
+func init() {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+}
 
 var (
 	clients = map[string]*http.Client{}
@@ -119,6 +126,7 @@ func main() {
 	router.HandleFunc("/client/{id}/{scheme}/{host}{path:.*}", func(rw http.ResponseWriter, req *http.Request) {
 		Client(handler, rw, req)
 	})
+	router.Handle("/metrics", promhttp.Handler())
 
 	fmt.Println("Listening on ", addr)
 	http.ListenAndServe(addr, router)
