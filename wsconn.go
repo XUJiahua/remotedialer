@@ -52,6 +52,12 @@ func (w *wsConn) WriteMessage(messageType int, deadline time.Time, data []byte) 
 }
 
 func (w *wsConn) NextReader() (int, io.Reader, error) {
+	// reset read deadline for every read operation
+	err := w.conn.SetReadDeadline(time.Now().Add(PingWaitDuration))
+	if err != nil {
+		return 0, nil, err
+	}
+
 	start := time.Now()
 	// w.conn.NextReader will not return PING/PONG message type
 	messageType, r, err := w.conn.NextReader()
