@@ -31,7 +31,8 @@ var (
 
 func authorizer(req *http.Request) (string, bool, error) {
 	id := req.Header.Get("x-tunnel-id")
-	return id, id != "", nil
+	// always auth passed
+	return id, true, nil
 }
 
 func Client(server *remotedialer.Server, rw http.ResponseWriter, req *http.Request) {
