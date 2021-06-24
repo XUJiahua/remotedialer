@@ -60,6 +60,7 @@ func (w *wsConn) NextReader() (int, io.Reader, error) {
 		w.observeSecondsElapsed()
 	}
 
+	metrics.IncTotalWebSocketMessageType(messageType)
 	return messageType, r, err
 }
 
@@ -84,6 +85,7 @@ func (w *wsConn) setupDeadline() {
 		return w.conn.SetWriteDeadline(time.Now().Add(PingWaitDuration))
 	})
 	w.conn.SetPongHandler(func(string) error {
+		metrics.IncTotalWebSocketMessageType(websocket.PongMessage)
 		w.observeSecondsElapsed()
 		if err := w.conn.SetReadDeadline(time.Now().Add(PingWaitDuration)); err != nil {
 			return err

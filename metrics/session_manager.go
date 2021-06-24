@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -103,6 +104,15 @@ var (
 		Help:      "The seconds elapsed after receiving Pong or on Err.",
 		Buckets:   prometheus.LinearBuckets(15, 15, 4),
 	})
+
+	TotalWebSocketMessageType = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Subsystem: "session_server",
+			Name:      "total_ws_msg_type",
+			Help:      "Total count of each websocket message type",
+		},
+		[]string{"msg_type"},
+	)
 )
 
 // Register registers a series of session
@@ -120,6 +130,7 @@ func Register() {
 	prometheus.MustRegister(TotalPeerConnected)
 	prometheus.MustRegister(TotalPeerDisConnected)
 	prometheus.MustRegister(SecondsElapsedAfterPongOrErr)
+	prometheus.MustRegister(TotalWebSocketMessageType)
 }
 
 func init() {
@@ -233,6 +244,16 @@ func IncSMTotalPeerDisConnected(peer string) {
 		TotalPeerDisConnected.With(
 			prometheus.Labels{
 				"peer": peer,
+			}).Inc()
+
+	}
+}
+
+func IncTotalWebSocketMessageType(messageType int) {
+	if prometheusMetrics {
+		TotalWebSocketMessageType.With(
+			prometheus.Labels{
+				"msg_type": fmt.Sprintf("%d", messageType),
 			}).Inc()
 
 	}
